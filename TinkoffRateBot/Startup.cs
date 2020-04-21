@@ -2,6 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Amazon;
+using Amazon.DynamoDBv2;
+using Amazon.DynamoDBv2.DataModel;
+using Amazon.Runtime;
+using Amazon.Runtime.CredentialManagement;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.HttpsPolicy;
@@ -10,6 +15,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using TinkoffRateBot.DataAccess;
+using TinkoffRateBot.DataAccess.Interfaces;
 
 namespace TinkoffRateBot
 {
@@ -27,10 +34,42 @@ namespace TinkoffRateBot
         {
             services.AddControllers();
             services.Configure<BotConfiguration>(Configuration.GetSection("Bot"));
+
+            //var options = Configuration.GetSection(nameof(CredentialProfileOptions)).Get<CredentialProfileOptions>();
+            //services.AddSingleton(options);
+            //services.AddTransient(provider =>
+            //{
+            //    var profile = new CredentialProfile("basic_profile", provider.GetRequiredService<CredentialProfileOptions>())
+            //    {
+            //        Region = RegionEndpoint.EUCentral1
+            //    };
+            //    return profile;
+            //});
+
+            var awsEnvSection = Configuration.GetSection("AWSEnvironment");
+            if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("AWS_ACCESS_KEY_ID")))
+            {
+                Environment.SetEnvironmentVariable("AWS_ACCESS_KEY_ID", awsEnvSection.GetValue<string>("AccessKey"));
+            }
+            if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("AWS_SECRET_ACCESS_KEY")))
+            {
+                Environment.SetEnvironmentVariable("AWS_SECRET_ACCESS_KEY", awsEnvSection.GetValue<string>("SecretKey"));
+            }
+            if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("AWS_REGION")))
+            {
+                Environment.SetEnvironmentVariable("AWS_REGION", awsEnvSection.GetValue<string>("Region"));
+            }
+
+            var awsOptions = Configuration.GetAWSOptions();
+            awsOptions.Credentials = new EnvironmentVariablesAWSCredentials();
+            services.AddDefaultAWSOptions(awsOptions);
+            services.AddAWSService<IAmazonDynamoDB>();
+            services.AddTransient<IDynamoDBContext, DynamoDBContext>();
+            services.AddTransient<IRepository, DynamoDBRepository>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+        public async void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
             if (env.IsDevelopment())
             {
@@ -47,6 +86,7 @@ namespace TinkoffRateBot
             {
                 endpoints.MapControllers();
             });
+            await DataAccess.Static.InitializeDB(app.ApplicationServices);
         }
     }
 }
