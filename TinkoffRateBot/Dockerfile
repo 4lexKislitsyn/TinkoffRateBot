@@ -7,7 +7,9 @@ EXPOSE 443
 
 FROM mcr.microsoft.com/dotnet/core/sdk:3.1-buster AS build
 WORKDIR /src
-COPY ["TinkoffRateBot/TinkoffRateBot.csproj", "TinkoffRateBot/"]
+COPY ["TinkoffRateBot.csproj", "TinkoffRateBot/"]
+COPY *.cs *.json TinkoffRateBot/
+COPY Background/* Controllers/* DataAccess/* TinkoffRateBot/
 RUN dotnet restore "TinkoffRateBot/TinkoffRateBot.csproj"
 COPY . .
 WORKDIR "/src/TinkoffRateBot"
