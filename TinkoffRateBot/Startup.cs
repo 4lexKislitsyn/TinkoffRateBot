@@ -15,6 +15,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using TinkoffRateBot.Background;
 using TinkoffRateBot.DataAccess;
 using TinkoffRateBot.DataAccess.Interfaces;
 
@@ -35,18 +36,8 @@ namespace TinkoffRateBot
             services.AddControllers();
             services.Configure<BotConfiguration>(Configuration.GetSection("Bot"));
 
-            //var options = Configuration.GetSection(nameof(CredentialProfileOptions)).Get<CredentialProfileOptions>();
-            //services.AddSingleton(options);
-            //services.AddTransient(provider =>
-            //{
-            //    var profile = new CredentialProfile("basic_profile", provider.GetRequiredService<CredentialProfileOptions>())
-            //    {
-            //        Region = RegionEndpoint.EUCentral1
-            //    };
-            //    return profile;
-            //});
-
             var awsEnvSection = Configuration.GetSection("AWSEnvironment");
+
             if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("AWS_ACCESS_KEY_ID")))
             {
                 Environment.SetEnvironmentVariable("AWS_ACCESS_KEY_ID", awsEnvSection.GetValue<string>("AccessKey"));
@@ -66,6 +57,9 @@ namespace TinkoffRateBot
             services.AddAWSService<IAmazonDynamoDB>();
             services.AddTransient<IDynamoDBContext, DynamoDBContext>();
             services.AddTransient<IRepository, DynamoDBRepository>();
+
+            services.Configure<TinkoffRateTimedConfiguration>(Configuration.GetSection(nameof(TinkoffRateTimedHostedService)));
+            services.AddHostedService<TinkoffRateTimedHostedService>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
