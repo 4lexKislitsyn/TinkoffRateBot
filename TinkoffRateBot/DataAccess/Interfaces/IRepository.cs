@@ -12,5 +12,6 @@ namespace TinkoffRateBot.DataAccess.Interfaces
         Task<bool> AddAsync(TinkoffExchangeRate exchangeRate);
         Task<TinkoffExchangeRate> GetLastRateAsync();
         Task<IEnumerable<TelegramChatInfo>> GetActiveChatsAsync();
+        Task InitializeDBAsync(IServiceProvider serviceProvider);
     }
 }

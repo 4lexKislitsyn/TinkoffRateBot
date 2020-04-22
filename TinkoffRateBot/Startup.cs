@@ -80,7 +80,7 @@ namespace TinkoffRateBot
             {
                 endpoints.MapControllers();
             });
-            await DataAccess.Static.InitializeDB(app.ApplicationServices);
+            await app.ApplicationServices.GetService<IRepository>().InitializeDBAsync(app.ApplicationServices);
         }
     }
 }
