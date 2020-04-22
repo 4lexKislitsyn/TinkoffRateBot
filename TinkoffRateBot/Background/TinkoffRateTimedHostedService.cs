@@ -67,6 +67,8 @@ namespace TinkoffRateBot.Background
             if (_lastRate == null || Math.Abs(parsedRate.Sell - _lastRate.Sell) >= _configuration.Threshold)
             {
                 await _serviceProvider.GetRequiredService<IRepository>().AddAsync(parsedRate);
+                _logger.LogInformation($"Rate added to DB: {parsedRate.Sell} ({parsedRate.Sell - _lastRate.Sell:+0.##;-0.##;0})");
+				_lastRate = parsedRate;
                 // TODO: send message
             }
             else
