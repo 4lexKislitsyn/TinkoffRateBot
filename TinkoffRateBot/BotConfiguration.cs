@@ -7,8 +7,7 @@ namespace TinkoffRateBot
 {
     public class BotConfiguration
     {
-        public string Name { get; set; }
-        public string Key { get; set; }
-        public Uri WebHookUrl { get; set; }
+        public string Token { get; set; }
+        public int UpdatesPeriod { get; set; }
     }
 }

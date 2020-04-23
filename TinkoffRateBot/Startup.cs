@@ -16,8 +16,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using TinkoffRateBot.Background;
+using TinkoffRateBot.BotCommands;
 using TinkoffRateBot.DataAccess;
 using TinkoffRateBot.DataAccess.Interfaces;
+using TinkoffRateBot.Services;
 
 namespace TinkoffRateBot
 {
@@ -60,6 +62,10 @@ namespace TinkoffRateBot
 
             services.Configure<TinkoffRateTimedConfiguration>(Configuration.GetSection(nameof(TinkoffRateTimedHostedService)));
             services.AddHostedService<TinkoffRateTimedHostedService>();
+
+            services.AddTransient<IBotCommand, StartCommand>();
+            services.AddTransient<IBotCommand, PauseCommand>();
+            services.AddTransient<TelegramMessageSender>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

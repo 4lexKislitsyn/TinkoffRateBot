@@ -18,20 +18,11 @@ namespace TinkoffRateBot.Controllers
         [HttpPost]
         public async Task<IActionResult> Post([FromServices] IRepository repository)
         {
-            var random = new Random((int)DateTime.Now.Ticks);
-            var rate = new TinkoffExchangeRate
-            {
-                From = "USD",
-                Buy = random.NextDouble(),
-                Sell = random.NextDouble(),
-                Updated = DateTime.Now,
-                Category = "SavingAccountTransfers"
-            };
-            await repository.AddAsync(rate);
             await repository.AddAsync(new TelegramChatInfo
             {
-                Id = DateTime.Now.Second,
-                Added = DateTime.UtcNow,
+                Type = ChatInfoType.Chat,
+                Id = 53,
+                Updated = DateTime.UtcNow,
                 IsEnabled = true,
             });
             return Ok(await repository.GetLastRateAsync());

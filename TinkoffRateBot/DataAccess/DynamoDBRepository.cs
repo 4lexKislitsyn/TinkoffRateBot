@@ -2,19 +2,21 @@
 using Amazon.DynamoDBv2.DataModel;
 using Amazon.DynamoDBv2.DocumentModel;
 using Amazon.DynamoDBv2.Model;
+using Amazon.Runtime;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using TinkoffRateBot.DataAccess.Converters;
 using TinkoffRateBot.DataAccess.Models;
 
 namespace TinkoffRateBot.DataAccess
 {
     public class DynamoDBRepository : Interfaces.IRepository
     {
-        private IDynamoDBContext _dynamoDBContext;
+        private readonly IDynamoDBContext _dynamoDBContext;
 
         public DynamoDBRepository(IDynamoDBContext dynamoDBContext)
         {
@@ -40,7 +42,11 @@ namespace TinkoffRateBot.DataAccess
 
         public async Task<IEnumerable<TelegramChatInfo>> GetActiveChatsAsync()
         {
-            var condition = new[] { new ScanCondition(nameof(TelegramChatInfo.IsEnabled), ScanOperator.Equal, true) };
+            var condition = new[] 
+            { 
+                new ScanCondition(nameof(TelegramChatInfo.Type), ScanOperator.Equal, ChatInfoType.Chat.ToString()), 
+                new ScanCondition(nameof(TelegramChatInfo.IsEnabled), ScanOperator.Equal, true) 
+            };
             var scan = _dynamoDBContext.ScanAsync<TelegramChatInfo>(condition);
             var chats = new List<TelegramChatInfo>();
             while (!scan.IsDone)
@@ -63,13 +69,42 @@ namespace TinkoffRateBot.DataAccess
             return items.FirstOrDefault();
         }
 
+        public async Task<TelegramChatInfo> GetLastUpdate()
+        {
+            var asyncQuery = _dynamoDBContext.FromQueryAsync<TelegramChatInfo>(new QueryOperationConfig
+            {
+                Limit = 1,
+                Filter = new QueryFilter(nameof(TelegramChatInfo.Type), QueryOperator.Equal, ChatInfoType.Update.ToString()),
+                BackwardSearch = true,
+            });
+            var items = await asyncQuery.GetNextSetAsync();
+            return items.FirstOrDefault();
+        }
+
+        public Task<TelegramChatInfo> UpdateChatInfo(long id)
+        {
+            return _dynamoDBContext.LoadAsync<TelegramChatInfo>(ChatInfoType.Chat.ToString(), id);
+        }
+
+        public Task UpdateChatInfo(long id, bool isEnabled)
+        {
+            return _dynamoDBContext.SaveAsync(new TelegramChatInfo
+            {
+                Type = ChatInfoType.Chat,
+                Updated = DateTime.UtcNow,
+                Id = id,
+                IsEnabled = isEnabled
+            });
+        }
+
         public async Task InitializeDBAsync(IServiceProvider serviceProvider)
         {
             var client = serviceProvider.GetRequiredService<IAmazonDynamoDB>();
             var tables = await client.ListTablesAsync();
 
+            // TODO: use prefix in repository
             var postfix = serviceProvider.GetService<IHostEnvironment>().IsDevelopment() 
-                ? "_dev" 
+                ? string.Empty
                 : string.Empty;
 
             async Task CreateIfNotExist<T>()
@@ -114,12 +149,23 @@ namespace TinkoffRateBot.DataAccess
 
             foreach (var prop in properties.Where(x => Attribute.IsDefined(x, typeof(DynamoDBHashKeyAttribute)) || Attribute.IsDefined(x, typeof(DynamoDBRangeKeyAttribute))))
             {
+                var isStringEnum = false;
+                if (prop.PropertyType.IsEnum)
+                {
+                    var attributeType = prop.CustomAttributes.FirstOrDefault(x => x.AttributeType.BaseType == typeof(DynamoDBPropertyAttribute))?.AttributeType;
+                    if (attributeType != null)
+                    {
+                        var attribute = Attribute.GetCustomAttribute(prop, attributeType) as DynamoDBPropertyAttribute;
+                        isStringEnum = attribute.Converter?.IsGenericType == true 
+                            && attribute.Converter.GetGenericTypeDefinition() == typeof(DynamoEnumToStringConverter<>);
+                    }
+                }
                 string type;
-                if (prop.PropertyType == typeof(string) || prop.PropertyType == typeof(DateTime))
+                if (prop.PropertyType == typeof(string) || prop.PropertyType == typeof(DateTime) || isStringEnum)
                 {
                     type = "S";
                 }
-                else if (prop.PropertyType == typeof(int) || prop.PropertyType == typeof(double) || prop.PropertyType == typeof(float))
+                else if (prop.PropertyType == typeof(int) || prop.PropertyType == typeof(double) || prop.PropertyType == typeof(float) || prop.PropertyType == typeof(long))
                 {
                     type = "N";
                 }

@@ -9,6 +9,7 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using TinkoffRateBot.DataAccess.Interfaces;
 using TinkoffRateBot.DataAccess.Models;
+using TinkoffRateBot.Services;
 
 namespace TinkoffRateBot.Background
 {
@@ -16,10 +17,10 @@ namespace TinkoffRateBot.Background
     {
         private readonly TinkoffRateTimedConfiguration _configuration;
         private readonly IServiceProvider _serviceProvider;
-        private TinkoffExchangeRate _lastRate;
+        public static TinkoffExchangeRate LastRate { get; private set; };
 
         public TinkoffRateTimedHostedService(ILogger<TinkoffRateTimedHostedService> logger, IOptions<TinkoffRateTimedConfiguration> options, IServiceProvider serviceProvider) 
-            : base(logger, options.Value.Period)
+            : base(logger, options.Value.Period, 20)
         {
             _configuration = options.Value;
             _serviceProvider = serviceProvider; 
@@ -58,22 +59,22 @@ namespace TinkoffRateBot.Background
                 Category = rate.SelectToken("category").Value<string>(),
             };
 
-            if (_lastRate == null)
+            if (LastRate == null)
             {
                 var repository = _serviceProvider.GetRequiredService<IRepository>();
-                _lastRate = await repository.GetLastRateAsync();
+                LastRate = await repository.GetLastRateAsync();
             }
 
-            if (_lastRate == null || Math.Abs(parsedRate.Sell - _lastRate.Sell) >= _configuration.Threshold)
+            if (LastRate == null || Math.Abs(parsedRate.Sell - LastRate.Sell) >= _configuration.Threshold)
             {
                 await _serviceProvider.GetRequiredService<IRepository>().AddAsync(parsedRate);
-                _logger.LogInformation($"Rate added to DB: {parsedRate.Sell} ({parsedRate.Sell - _lastRate.Sell:+0.##;-0.##;0})");
-				_lastRate = parsedRate;
-                // TODO: send message
+                _logger.LogInformation($"Rate added to DB: {parsedRate.Sell} ({parsedRate.Sell - LastRate.Sell:+0.##;-0.##;0})");
+                await _serviceProvider.GetRequiredService<TelegramMessageSender>().SendRateAsync(parsedRate, LastRate);
+                LastRate = parsedRate;
             }
             else
             {
-                _logger.LogInformation($"Rate is skipped: {parsedRate.Sell} ({parsedRate.Sell - _lastRate.Sell:+0.##;-0.##;0})");
+                _logger.LogInformation($"Rate is skipped: {parsedRate.Sell} ({parsedRate.Sell - LastRate.Sell:+0.##;-0.##;0})");
             }
         }
     }
