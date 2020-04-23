@@ -62,6 +62,7 @@ namespace TinkoffRateBot
 
             services.Configure<TinkoffRateTimedConfiguration>(Configuration.GetSection(nameof(TinkoffRateTimedHostedService)));
             services.AddHostedService<TinkoffRateTimedHostedService>();
+            services.AddHostedService<TelegramBotGetUpdatesHostedService>();
 
             services.AddTransient<IBotCommand, StartCommand>();
             services.AddTransient<IBotCommand, PauseCommand>();

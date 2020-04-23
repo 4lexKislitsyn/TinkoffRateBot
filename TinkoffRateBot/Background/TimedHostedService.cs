@@ -48,7 +48,14 @@ namespace TinkoffRateBot.Background
         {
             var count = Interlocked.Increment(ref executionCount);
             _logger.LogInformation($"{GetType().Name} is working. Count: {count}");
-            await TickAsync();
+            try
+            {
+                await TickAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error was occurred while handle tick.");
+            }
         }
     }
 }
