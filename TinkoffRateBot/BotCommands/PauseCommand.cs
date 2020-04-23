@@ -24,7 +24,9 @@ namespace TinkoffRateBot.BotCommands
         }
         public async override Task HandleAsync(Message message, TelegramBotClient client)
         {
+            _logger.LogInformation($"Start handle PAUSE command for chat {message.Chat.Id}");
             await _repository.UpdateChatInfo(message.Chat.Id, false);
+            _logger.LogInformation("Sending message from PAUSE command");
             await _messageSender.SendMessageAsync(message.Chat.Id, "Send /start to resume notifications.");
         }
 

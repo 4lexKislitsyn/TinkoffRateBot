@@ -53,6 +53,7 @@ namespace TinkoffRateBot.Services
             try
             {
                 await new TelegramBotClient(_configuration.Token).SendTextMessageAsync(new ChatId(chatId), markdownMessage, Telegram.Bot.Types.Enums.ParseMode.Markdown);
+                _logger.LogInformation($"Message was sent in chat {chatId} ({markdownMessage})");
             }
             catch (Exception ex)
             {

@@ -24,7 +24,7 @@ namespace TinkoffRateBot.Background
             IOptions<BotConfiguration> options, 
             IRepository repository,
             IEnumerable<IBotCommand> botCommands) 
-            : base(logger, options.Value.UpdatesPeriod, 0)
+            : base(logger, options.Value.UpdatesPeriod, 20)
         {
             _botConfiguration = options.Value;
             _repository = repository;
@@ -37,26 +37,36 @@ namespace TinkoffRateBot.Background
                 var lastUpdate = await _repository.GetLastUpdate();
                 _lastUpdateId = (int)lastUpdate.Id;
             }
+            _logger.LogInformation($"LastUpdateId = {_lastUpdateId}");
             var client = new Telegram.Bot.TelegramBotClient(_botConfiguration.Token);
-            var updates = await client.GetUpdatesAsync(offset: _lastUpdateId);
+            _logger.LogInformation("Trying to get updates");
+            var updates = await client.GetUpdatesAsync(offset: _lastUpdateId + 1);
             if (updates == null)
             {
                 _logger.LogWarning("Updates is null");
                 return;
             }
-
+            _logger.LogInformation($"Got updates = {updates.Count()}");
             _lastUpdateId = updates.LastOrDefault()?.Id ?? _lastUpdateId;
             foreach (var update in updates)
             {
                 try
                 {
-                    await _commands.FirstOrDefault(x => x.CanHandle(update.Message))?.HandleAsync(update.Message, client);
+                    _logger.LogInformation($"Try to handle message {update?.Message?.Text}");
+                    var command = _commands.FirstOrDefault(x => x.CanHandle(update.Message));
+                    if (command == null)
+                    {
+                        _logger.LogWarning($"Command wasn't found. Type = {update.Message.Type}.");
+                        continue;
+                    }
+                    await command.HandleAsync(update.Message, client);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Error was occurred while handling update {Id}", update.Id);
+                    _logger.LogError(ex, $"Error was occurred while handling update {update.Id} ({update.Message}); commands count = {_commands?.Count()}");
                 }
             }
+            await _repository.AddAsync(new DataAccess.Models.TelegramChatInfo { Id = _lastUpdateId, Type = DataAccess.Models.ChatInfoType.Update });
         }
     }
 }
