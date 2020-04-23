@@ -17,7 +17,7 @@ namespace TinkoffRateBot.Background
     {
         private readonly TinkoffRateTimedConfiguration _configuration;
         private readonly IServiceProvider _serviceProvider;
-        public static TinkoffExchangeRate LastRate { get; private set; };
+        public static TinkoffExchangeRate LastRate { get; private set; }
 
         public TinkoffRateTimedHostedService(ILogger<TinkoffRateTimedHostedService> logger, IOptions<TinkoffRateTimedConfiguration> options, IServiceProvider serviceProvider) 
             : base(logger, options.Value.Period, 20)
