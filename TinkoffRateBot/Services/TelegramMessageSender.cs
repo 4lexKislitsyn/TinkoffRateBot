@@ -35,7 +35,7 @@ namespace TinkoffRateBot.Services
 
         public async Task SendRateAsync(long chatId, TinkoffExchangeRate currentRate, TinkoffExchangeRate prevRate = null)
         {
-            var message = prevRate != null ? $"**UPDATE**\n{currentRate.From}:  {currentRate.Sell} ({currentRate.Sell - prevRate.Sell:+0.##;-0.##;0}"
+            var message = prevRate != null ? $"**UPDATE**\n{currentRate.From}:  {currentRate.Sell} ({currentRate.Sell - prevRate.Sell:+0.##;-0.##;0})"
                 : $"{currentRate.From}: {currentRate.Sell}";
             try
             {
