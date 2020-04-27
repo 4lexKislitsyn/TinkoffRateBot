@@ -66,6 +66,7 @@ namespace TinkoffRateBot
 
             services.AddTransient<IBotCommand, StartCommand>();
             services.AddTransient<IBotCommand, PauseCommand>();
+            services.AddTransient<IBotCommand, DetailedCommand>();
             services.AddTransient<TelegramMessageSender>();
         }
 
