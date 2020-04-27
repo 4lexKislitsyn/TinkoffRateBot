@@ -64,17 +64,19 @@ namespace TinkoffRateBot.Background
                 var repository = _serviceProvider.GetRequiredService<IRepository>();
                 LastRate = await repository.GetLastRateAsync();
             }
-
-            if (LastRate == null || Math.Abs(parsedRate.Sell - LastRate.Sell) >= _configuration.Threshold)
+            var diff = Math.Abs(parsedRate.Sell - (LastRate?.Sell ?? 0));
+            var sender = _serviceProvider.GetRequiredService<TelegramMessageSender>();
+            if (LastRate == null || diff >= _configuration.Threshold)
             {
                 await _serviceProvider.GetRequiredService<IRepository>().AddAsync(parsedRate);
-                _logger.LogInformation($"Rate added to DB: {parsedRate.Sell} ({parsedRate.Sell - LastRate.Sell:+0.##;-0.##;0})");
-                await _serviceProvider.GetRequiredService<TelegramMessageSender>().SendRateAsync(parsedRate, LastRate);
+                _logger.LogInformation($"Rate added to DB: {parsedRate.GetDiffMessage(LastRate)}");
+                await sender.SendRateAsync(parsedRate, LastRate);
                 LastRate = parsedRate;
             }
             else
             {
-                _logger.LogInformation($"Rate is skipped: {parsedRate.Sell} ({parsedRate.Sell - LastRate.Sell:+0.##;-0.##;0})");
+                await sender.SendDetailedRate(parsedRate, LastRate);
+                _logger.LogInformation($"Rate is skipped: {parsedRate.GetDiffMessage(LastRate)}");
             }
         }
     }

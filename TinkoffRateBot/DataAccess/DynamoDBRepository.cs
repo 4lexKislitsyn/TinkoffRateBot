@@ -96,6 +96,16 @@ namespace TinkoffRateBot.DataAccess
                 IsEnabled = isEnabled
             });
         }
+        public Task UpdateChatInfo(long id, double threshold)
+        {
+            return _dynamoDBContext.SaveAsync(new TelegramChatInfo
+            {
+                Type = ChatInfoType.Chat,
+                Updated = DateTime.UtcNow,
+                Id = id,
+                DetailedThreshold = threshold
+            });
+        }
 
         public async Task InitializeDBAsync(IServiceProvider serviceProvider)
         {
@@ -127,6 +137,23 @@ namespace TinkoffRateBot.DataAccess
 
             await CreateIfNotExist<TelegramChatInfo>();
             await CreateIfNotExist<TinkoffExchangeRate>();
+        }
+
+        public async Task<IEnumerable<TelegramChatInfo>> GetDetailedChatsAsync(double diff)
+        {
+            var conditions = new[]
+            {
+                new ScanCondition(nameof(TelegramChatInfo.IsEnabled), ScanOperator.Equal, true),
+                new ScanCondition(nameof(TelegramChatInfo.Type), ScanOperator.Equal, ChatInfoType.Chat.ToString()),
+                new ScanCondition(nameof(TelegramChatInfo.DetailedThreshold), ScanOperator.GreaterThanOrEqual, diff)
+            };
+            var scan = _dynamoDBContext.ScanAsync<TelegramChatInfo>(conditions);
+            var result = new List<TelegramChatInfo>();
+            while (!scan.IsDone)
+            {
+                result.AddRange(await scan.GetNextSetAsync());
+            }
+            return result;
         }
 
         private static IEnumerable<KeySchemaElement> GetKeys<T>()

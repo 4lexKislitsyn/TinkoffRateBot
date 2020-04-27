@@ -15,5 +15,7 @@ namespace TinkoffRateBot.DataAccess.Interfaces
         Task InitializeDBAsync(IServiceProvider serviceProvider);
         Task<TelegramChatInfo> GetLastUpdate();
         Task UpdateChatInfo(long id, bool isEnabled);
+        Task UpdateChatInfo(long id, double threshold);
+        Task<IEnumerable<TelegramChatInfo>> GetDetailedChatsAsync(double diff);
     }
 }

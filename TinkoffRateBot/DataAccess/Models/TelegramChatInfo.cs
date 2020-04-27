@@ -18,5 +18,10 @@ namespace TinkoffRateBot.DataAccess.Models
         public DateTime Updated { get; set; }
         [DynamoDBProperty]
         public bool IsEnabled { get; set; }
+        /// <summary>
+        /// Порог детальных сообщений.
+        /// </summary>
+        [DynamoDBProperty]
+        public double DetailedThreshold { get; set; }
     }
 }

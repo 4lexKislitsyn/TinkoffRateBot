@@ -22,6 +22,9 @@ namespace TinkoffRateBot.BotCommands
             _repository = repository;
             _messageSender = messageSender;
         }
+
+        protected override string CommandName => "pause";
+
         public async override Task HandleAsync(Message message, TelegramBotClient client)
         {
             _logger.LogInformation($"Start handle PAUSE command for chat {message.Chat.Id}");
@@ -29,7 +32,5 @@ namespace TinkoffRateBot.BotCommands
             _logger.LogInformation("Sending message from PAUSE command");
             await _messageSender.SendMessageAsync(message.Chat.Id, "Send /start to resume notifications.");
         }
-
-        protected override bool CanHandle(string messageText) => messageText.StartsWith("/pause");
     }
 }

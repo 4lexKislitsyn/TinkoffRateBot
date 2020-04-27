@@ -24,18 +24,15 @@ namespace TinkoffRateBot.BotCommands
             _repository = repository;
             _messageSender = messageSender;
         }
+
+        protected override string CommandName => "start";
+
         public override async Task HandleAsync(Message message, TelegramBotClient client)
         {
             _logger.LogInformation($"Handle START command for chat {message.Chat.Id}.");
             await _repository.UpdateChatInfo(message.Chat.Id, true);
             _logger.LogInformation("Start sending START message.");
             await _messageSender.SendRateAsync(message.Chat.Id, TinkoffRateTimedHostedService.LastRate);
-            
-        }
-
-        protected override bool CanHandle(string messageText)
-        {
-            return messageText.StartsWith("/start");
         }
     }
 }

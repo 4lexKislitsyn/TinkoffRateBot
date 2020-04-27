@@ -21,11 +21,6 @@ namespace TinkoffRateBot.DataAccess.Models
         [DynamoDBRangeKey(Converter = typeof(DateTimePropertyConverter))]
         public DateTime Updated { get; set; }
 
-        //[DynamoDBIgnore]
-        //public DateTime? UpdatedDate
-        //{
-        //    get => DateTime.TryParse(Updated, out var date) ? date : (DateTime?)null;
-        //    set => Updated = value?.ToString(Static.DateTimeFormat);
-        //}
+        public string GetDiffMessage(TinkoffExchangeRate compareRate) => $"{Sell} ({Sell - (compareRate?.Sell ?? 0):+0.##;-0.##;0})";
     }
 }
