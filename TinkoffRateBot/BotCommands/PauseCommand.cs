@@ -25,7 +25,7 @@ namespace TinkoffRateBot.BotCommands
 
         protected override string CommandName => "pause";
 
-        public async override Task HandleAsync(Message message, TelegramBotClient client)
+        public async override Task HandleAsync(Message message, ITelegramBotClient client)
         {
             _logger.LogInformation($"Start handle PAUSE command for chat {message.Chat.Id}");
             await _repository.UpdateChatInfo(message.Chat.Id, false);

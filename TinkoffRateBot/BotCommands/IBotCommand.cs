@@ -11,6 +11,6 @@ namespace TinkoffRateBot.BotCommands
     {
         bool CanHandle(Message message);
 
-        Task HandleAsync(Message message, TelegramBotClient client);
+        Task HandleAsync(Message message, ITelegramBotClient client);
     }
 }

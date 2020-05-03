@@ -13,18 +13,18 @@ namespace TinkoffRateBot.Services
 {
     public class TelegramMessageSender
     {
-        private readonly BotConfiguration _configuration;
+        private readonly ITelegramBotClient _client;
         private readonly IRepository _repository;
         private readonly ILogger<TelegramMessageSender> _logger;
 
-        public TelegramMessageSender(ILogger<TelegramMessageSender> logger, IOptions<BotConfiguration> options, IRepository repository)
+        public TelegramMessageSender(ILogger<TelegramMessageSender> logger, ITelegramBotClient client, IRepository repository)
         {
-            _configuration = options.Value;
+            _client = client;
             _repository = repository;
             _logger = logger;
         }
 
-        public async Task SendRateAsync(TinkoffExchangeRate currentRate, TinkoffExchangeRate previousRate = null, TelegramBotClient client = null)
+        public async Task SendRateAsync(TinkoffExchangeRate currentRate, TinkoffExchangeRate previousRate = null, ITelegramBotClient client = null)
         {
             var chats = await _repository.GetActiveChatsAsync();
             foreach (var chat in chats)
@@ -33,7 +33,7 @@ namespace TinkoffRateBot.Services
             }
         }
 
-        public async Task SendRateAsync(long chatId, TinkoffExchangeRate currentRate, TinkoffExchangeRate prevRate = null, TelegramBotClient client = null)
+        public async Task SendRateAsync(long chatId, TinkoffExchangeRate currentRate, TinkoffExchangeRate prevRate = null, ITelegramBotClient client = null)
         {
             var message = prevRate != null ? $"**UPDATE**\n{currentRate.From}:  {currentRate.GetDiffMessage(prevRate)}"
                 : $"{currentRate.From}: {currentRate.Sell}";
@@ -47,12 +47,11 @@ namespace TinkoffRateBot.Services
             }
         }
 
-
-        public async Task SendMessageAsync(long chatId, string markdownMessage, TelegramBotClient client = null)
+        public async Task SendMessageAsync(long chatId, string markdownMessage, ITelegramBotClient client = null)
         {
             try
             {
-                await (client ?? new TelegramBotClient(_configuration.Token)).SendTextMessageAsync(new ChatId(chatId), markdownMessage, Telegram.Bot.Types.Enums.ParseMode.Markdown);
+                await (client ?? _client).SendTextMessageAsync(new ChatId(chatId), markdownMessage, Telegram.Bot.Types.Enums.ParseMode.Markdown);
                 _logger.LogInformation($"Message was sent in chat {chatId} ({markdownMessage})");
             }
             catch (Exception ex)

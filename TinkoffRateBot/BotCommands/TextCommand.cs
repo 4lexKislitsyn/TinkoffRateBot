@@ -14,7 +14,7 @@ namespace TinkoffRateBot.BotCommands
         public bool CanHandle(Message message) 
             => message?.Type == Telegram.Bot.Types.Enums.MessageType.Text && CanHandle(message.Text);
 
-        public abstract Task HandleAsync(Message message, TelegramBotClient client);
+        public abstract Task HandleAsync(Message message, ITelegramBotClient client);
 
         protected virtual bool CanHandle(string messageText) => messageText.StartsWith($"/{CommandName}");
 

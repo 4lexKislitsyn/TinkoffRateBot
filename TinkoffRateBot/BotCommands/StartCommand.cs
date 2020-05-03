@@ -27,7 +27,7 @@ namespace TinkoffRateBot.BotCommands
 
         protected override string CommandName => "start";
 
-        public override async Task HandleAsync(Message message, TelegramBotClient client)
+        public override async Task HandleAsync(Message message, ITelegramBotClient client)
         {
             _logger.LogInformation($"Handle START command for chat {message.Chat.Id}.");
             await _repository.UpdateChatInfo(message.Chat.Id, true);

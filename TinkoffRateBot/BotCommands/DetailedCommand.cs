@@ -18,7 +18,7 @@ namespace TinkoffRateBot.BotCommands
         }
         protected override string CommandName => "detailed";
 
-        public override async  Task HandleAsync(Message message, TelegramBotClient client)
+        public override async  Task HandleAsync(Message message, ITelegramBotClient client)
         {
             if (message.Entities?.Length != 1)
             {
