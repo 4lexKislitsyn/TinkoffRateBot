@@ -86,16 +86,14 @@ namespace TinkoffRateBot.DataAccess
             return _dynamoDBContext.LoadAsync<TelegramChatInfo>(ChatInfoType.Chat.ToString(), id);
         }
 
-        public Task UpdateChatInfo(long id, bool isEnabled)
+        public async Task UpdateChatInfo(long id, bool isEnabled)
         {
-            return _dynamoDBContext.SaveAsync(new TelegramChatInfo
-            {
-                Type = ChatInfoType.Chat,
-                Updated = DateTime.UtcNow,
-                Id = id,
-                IsEnabled = isEnabled
-            });
+            var chatInfo = await _dynamoDBContext.LoadAsync<TelegramChatInfo>(ChatInfoType.Chat.ToString(), id);
+            chatInfo.IsEnabled = isEnabled;
+            chatInfo.Updated = DateTime.UtcNow;
+            await _dynamoDBContext.SaveAsync(chatInfo);
         }
+
         public Task UpdateChatInfo(long id, double threshold)
         {
             return _dynamoDBContext.SaveAsync(new TelegramChatInfo
@@ -103,7 +101,8 @@ namespace TinkoffRateBot.DataAccess
                 Type = ChatInfoType.Chat,
                 Updated = DateTime.UtcNow,
                 Id = id,
-                DetailedThreshold = threshold
+                DetailedThreshold = threshold,
+                IsEnabled = true
             });
         }
 
@@ -145,7 +144,7 @@ namespace TinkoffRateBot.DataAccess
             {
                 new ScanCondition(nameof(TelegramChatInfo.IsEnabled), ScanOperator.Equal, true),
                 new ScanCondition(nameof(TelegramChatInfo.Type), ScanOperator.Equal, ChatInfoType.Chat.ToString()),
-                new ScanCondition(nameof(TelegramChatInfo.DetailedThreshold), ScanOperator.GreaterThanOrEqual, diff)
+                new ScanCondition(nameof(TelegramChatInfo.DetailedThreshold), ScanOperator.LessThanOrEqual, diff)
             };
             var scan = _dynamoDBContext.ScanAsync<TelegramChatInfo>(conditions);
             var result = new List<TelegramChatInfo>();

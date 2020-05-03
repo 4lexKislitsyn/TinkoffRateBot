@@ -22,6 +22,6 @@ namespace TinkoffRateBot.DataAccess.Models
         /// Порог детальных сообщений.
         /// </summary>
         [DynamoDBProperty]
-        public double DetailedThreshold { get; set; }
+        public double DetailedThreshold { get; set; } = 0.5;
     }
 }

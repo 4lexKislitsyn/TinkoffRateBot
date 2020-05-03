@@ -13,6 +13,6 @@ namespace TinkoffRateBot.DataAccess
 {
     public static class Static
     {
-        public const string DateTimeFormat = "dd/MM/yyyy HH:mm:ss";
+        public const string DateTimeFormat = "yyyy/MM/dd HH:mm:ss";
     }
 }
