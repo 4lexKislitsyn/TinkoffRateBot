@@ -67,7 +67,15 @@ namespace TinkoffRateBot.Background
             var diff = Math.Abs(parsedRate.Sell - (LastRate?.Sell ?? parsedRate.Sell));
             if (diff == 0)
             {
-                _logger.LogInformation($"Difference between parsed and last rate is 0.");
+                if (LastRate == null)
+                {
+                    await _serviceProvider.GetRequiredService<IRepository>().SaveEntityAsync(parsedRate);
+                    LastRate = parsedRate;
+                }
+                else
+                {
+                    _logger.LogInformation($"Difference between parsed and last rate is 0.");
+                }
                 return;
             }
 
