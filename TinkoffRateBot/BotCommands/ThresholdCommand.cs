@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using Telegram.Bot;
@@ -35,7 +36,7 @@ namespace TinkoffRateBot.BotCommands
             }
             var substring = message.Text.Substring(message.Entities[0].Offset + message.Entities[0].Length)?.Trim();
             var isEmptyThreshold = string.IsNullOrWhiteSpace(substring);
-            if (!double.TryParse(substring, out var threshold) && !isEmptyThreshold)
+            if (!double.TryParse(substring, NumberStyles.Any, CultureInfo.InvariantCulture.NumberFormat, out var threshold) && !isEmptyThreshold)
             {
                 await _messageSender.SendMessageAsync(message.Chat.Id, "Cannot parse threshold.");
                 return;

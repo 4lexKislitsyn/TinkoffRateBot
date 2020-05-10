@@ -14,6 +14,7 @@ using TinkoffRateBot.Services;
 namespace TinkoffRateBot.Controllers
 {
     [Route("api/message")]
+    [ApiController]
     public class MessageController : Controller
     {
         private readonly ILogger<MessageController> _logger;
