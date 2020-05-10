@@ -9,6 +9,7 @@ using Amazon.DynamoDBv2.DataModel;
 using Amazon.Runtime;
 using Amazon.Runtime.CredentialManagement;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.HttpsPolicy;
@@ -46,17 +47,21 @@ namespace TinkoffRateBot
 
             RegisterAwsServices(services);
 
-            if (!HostEnvironment.IsDevelopment())
-            {
-
-                services.Configure<TinkoffRateTimedConfiguration>(Configuration.GetSection(nameof(TinkoffRateTimedHostedService)));
-                services.AddHostedService<TinkoffRateTimedHostedService>();
-            }
+            services.Configure<TinkoffRateTimedConfiguration>(Configuration.GetSection(nameof(TinkoffRateTimedHostedService)));
+            services.AddHostedService<TinkoffRateTimedHostedService>();
 
             RegisterTelegramBotServices(services);
 
             services.Configure<BasicAuthHandlerConfiguration>(Configuration.GetSection(nameof(BasicAuthHandler)));
-            services.AddAuthentication(AuthenticationSchemes.Basic.ToString()).AddScheme<AuthenticationSchemeOptions, BasicAuthHandler>(AuthenticationSchemes.Basic.ToString(), null);
+            services.AddAuthentication(AuthenticationSchemes.Basic.ToString())
+                .AddScheme<AuthenticationSchemeOptions, BasicAuthHandler>(AuthenticationSchemes.Basic.ToString(), AuthenticationSchemes.Basic.ToString(), null);
+            services.AddAuthorization(options =>
+            {
+                options.DefaultPolicy = new AuthorizationPolicyBuilder()
+                    .AddAuthenticationSchemes(AuthenticationSchemes.Basic.ToString())
+                    .RequireAuthenticatedUser()
+                    .Build();
+            });
         }
 
         public async void Configure(IApplicationBuilder app, IWebHostEnvironment env)
@@ -80,17 +85,20 @@ namespace TinkoffRateBot
             await app.ApplicationServices.GetService<IRepository>().InitializeDBAsync(app.ApplicationServices);
         }
 
+        private static void UpdateEnvironmentVariable(string environmentKey, string configurationKey, IConfigurationSection section)
+        {
+            if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(environmentKey)))
+            {
+                Environment.SetEnvironmentVariable(environmentKey, section.GetValue<string>(configurationKey));
+            }
+        }
+
         private void RegisterAwsServices(IServiceCollection services)
         {
             var awsEnvSection = Configuration.GetSection("AWSEnvironment");
 
             void UpdateEnvironmentVariable(string environmentKey, string configurationKey)
-            {
-                if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(environmentKey)))
-                {
-                    Environment.SetEnvironmentVariable(environmentKey, awsEnvSection.GetValue<string>(configurationKey));
-                }
-            }
+                => Startup.UpdateEnvironmentVariable(environmentKey, configurationKey, awsEnvSection);
 
             UpdateEnvironmentVariable("AWS_ACCESS_KEY_ID", "AccessKey");
             UpdateEnvironmentVariable("AWS_SECRET_ACCESS_KEY", "SecretKey");
@@ -109,11 +117,11 @@ namespace TinkoffRateBot
         {
             services.AddTransient<IBotCommand, StartCommand>();
             services.AddTransient<IBotCommand, PauseCommand>();
-            services.AddTransient<IBotCommand, DetailedCommand>();
+            services.AddTransient<IBotCommand, ThresholdCommand>();
             services.AddTransient<TelegramMessageSender>();
             services.AddTransient<TelegramUpdateHandler>();
 
-            var token = Environment.GetEnvironmentVariable(EnvTokenVariableName);
+            var token = Environment.GetEnvironmentVariable(EnvTokenVariableName) ?? Configuration.GetSection("Bot").GetValue<string>("Token");
             if (string.IsNullOrWhiteSpace(token))
             {
                 throw new ArgumentException($"Provide token for bot via environment variable \"{EnvTokenVariableName}\"");

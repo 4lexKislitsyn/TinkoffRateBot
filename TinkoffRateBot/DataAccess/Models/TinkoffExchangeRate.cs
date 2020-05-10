@@ -5,11 +5,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using TinkoffRateBot.DataAccess.Converters;
+using TinkoffRateBot.DataAccess.Interfaces;
 
 namespace TinkoffRateBot.DataAccess.Models
 {
     [DynamoDBTable(nameof(TinkoffExchangeRate))]
-    public class TinkoffExchangeRate
+    public class TinkoffExchangeRate : IEntity
     {
         [DynamoDBHashKey]
         public string From { get; set; }

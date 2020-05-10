@@ -11,8 +11,14 @@ using Amazon.DynamoDBv2.DataModel;
 
 namespace TinkoffRateBot.DataAccess
 {
+    /// <summary>
+    /// Class for constants and static methods.
+    /// </summary>
     public static class Static
     {
+        /// <summary>
+        /// Format for <see cref="DateTime"/> to <see cref="string"/> converting.
+        /// </summary>
         public const string DateTimeFormat = "yyyy/MM/dd HH:mm:ss";
     }
 }

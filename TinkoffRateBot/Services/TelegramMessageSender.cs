@@ -62,9 +62,10 @@ namespace TinkoffRateBot.Services
 
         public async Task SendDetailedRate(TinkoffExchangeRate parsedRate, TinkoffExchangeRate lastRate)
         {
-            var chats = await _repository.GetDetailedChatsAsync(Math.Abs(parsedRate.Sell - lastRate.Sell));
+            var chats = await _repository.GetDetailedChatsAsync(parsedRate, lastRate);
             foreach (var chat in chats)
             {
+                await _repository.UpdateChatInfo(chat.Id, chat.DetailedThreshold, parsedRate.Sell);
                 await SendMessageAsync(chat.Id, $"Difference from active rate: {parsedRate.GetDiffMessage(lastRate)}");
             }
         }

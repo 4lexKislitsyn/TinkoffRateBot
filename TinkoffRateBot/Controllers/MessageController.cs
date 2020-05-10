@@ -2,8 +2,10 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Amazon.Runtime.Internal.Util;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using TinkoffRateBot.DataAccess.Interfaces;
@@ -14,6 +16,12 @@ namespace TinkoffRateBot.Controllers
     [Route("api/message")]
     public class MessageController : Controller
     {
+        private readonly ILogger<MessageController> _logger;
+
+        public MessageController(ILogger<MessageController> logger)
+        {
+            _logger = logger;
+        }
         [HttpPost]
         public async Task<IActionResult> Post(Update update, [FromServices] TelegramUpdateHandler updateHandler)
         {
@@ -23,12 +31,13 @@ namespace TinkoffRateBot.Controllers
 
         [Authorize]
         [HttpPost("notify")]
-        public async Task<IActionResult> NotifyChats(string message, [FromServices] ITelegramBotClient botClient, [FromServices] IRepository repository)
+        public async Task<IActionResult> NotifyChats(string message, [FromServices] TelegramMessageSender botClient, [FromServices] IRepository repository)
         {
+            _logger.LogInformation("Start to send accepted message to all active chats.");
             var chats = await repository.GetActiveChatsAsync();
             foreach (var chat in chats)
             {
-                await botClient.SendTextMessageAsync(chat.Id, message, Telegram.Bot.Types.Enums.ParseMode.Markdown);
+                await botClient.SendMessageAsync(chat.Id, message);
             }
             return Ok();
         }

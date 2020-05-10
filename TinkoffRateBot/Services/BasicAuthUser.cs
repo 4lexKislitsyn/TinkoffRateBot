@@ -1,11 +1,17 @@
-﻿namespace TinkoffRateBot
+﻿namespace TinkoffRateBot.Services
 {
-    public partial class BasicAuthHandlerConfiguration
+    /// <summary>
+    /// Minimal information about active credential.
+    /// </summary>
+    public class BasicAuthUser
     {
-        public class BasicAuthUser
-        {
-            public string Name { get; set; }
-            public string Password { get; set; }
-        }
+        /// <summary>
+        /// User name.
+        /// </summary>
+        public string Name { get; set; }
+        /// <summary>
+        /// User password.
+        /// </summary>
+        public string Password { get; set; }
     }
 }

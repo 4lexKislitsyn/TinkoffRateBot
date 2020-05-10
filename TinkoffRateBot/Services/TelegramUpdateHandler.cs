@@ -10,19 +10,29 @@ using TinkoffRateBot.BotCommands;
 
 namespace TinkoffRateBot.Services
 {
+    /// <summary>
+    /// Handle telegram request with <see cref="Update"/> content.
+    /// </summary>
     public class TelegramUpdateHandler
     {
         private readonly ILogger<TelegramUpdateHandler> _logger;
         private readonly IEnumerable<IBotCommand> _botCommands;
-        private readonly ITelegramBotClient _botClient;
 
-        public TelegramUpdateHandler(ILogger<TelegramUpdateHandler> logger, IEnumerable<IBotCommand> botCommands, ITelegramBotClient botClient)
+        /// <summary>
+        /// Create an instance of <see cref="TelegramUpdateHandler"/>.
+        /// </summary>
+        /// <param name="logger"></param>
+        /// <param name="botCommands"></param>
+        public TelegramUpdateHandler(ILogger<TelegramUpdateHandler> logger, IEnumerable<IBotCommand> botCommands)
         {
             _logger = logger;
             _botCommands = botCommands;
-            _botClient = botClient;
         }
-
+        /// <summary>
+        /// Handle Telegram update message.
+        /// </summary>
+        /// <param name="update"></param>
+        /// <returns></returns>
         public async ValueTask<bool> Handle(Update update)
         {
             try
@@ -34,7 +44,7 @@ namespace TinkoffRateBot.Services
                     _logger.LogWarning($"Command wasn't found. Type = {update.Message.Type}.");
                     return false;
                 }
-                await command.HandleAsync(update.Message, _botClient);
+                await command.HandleAsync(update.Message);
                 return true;
             }
             catch (Exception ex)

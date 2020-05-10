@@ -13,21 +13,31 @@ using TinkoffRateBot.Services;
 
 namespace TinkoffRateBot.Background
 {
+    /// <summary>
+    /// Timed service that watching on Tinkoff Bank USD/RUB currency rate.
+    /// </summary>
     public class TinkoffRateTimedHostedService : TimedHostedService
     {
+        public static TinkoffExchangeRate LastRate { get; private set; }
+
         private readonly TinkoffRateTimedConfiguration _configuration;
         private readonly IServiceProvider _serviceProvider;
-        public static TinkoffExchangeRate LastRate { get; private set; }
 
         public TinkoffRateTimedHostedService(ILogger<TinkoffRateTimedHostedService> logger, IOptions<TinkoffRateTimedConfiguration> options, IServiceProvider serviceProvider) 
             : base(logger, options.Value.Period, 20)
         {
             _configuration = options.Value;
-            _serviceProvider = serviceProvider; 
+            _serviceProvider = serviceProvider;
         }
-
+        /// <inheritdoc/>
         protected override async Task TickAsync()
         {
+            if (LastRate == null)
+            {
+                var repository = _serviceProvider.GetRequiredService<IRepository>();
+                LastRate = await repository.GetLastRateAsync();
+            }
+
             var client = new HttpClient
             {
                 BaseAddress = _configuration.BaseUrl
@@ -50,34 +60,22 @@ namespace TinkoffRateBot.Background
                 _logger.LogCritical($"Can't get rate width category SavingAccountTransfers. Content: {content}.");
                 return;
             }
-            var parsedRate = new TinkoffExchangeRate()
-            {
-                Buy = rate.SelectToken("buy").Value<double>(),
-                Sell = rate.SelectToken("sell").Value<double>(),
-                From = rate.SelectToken("fromCurrency.name").Value<string>(),
-                Updated = DateTime.UnixEpoch.AddMilliseconds(obj.SelectToken("$.payload.lastUpdate.milliseconds").Value<double>()),
-                Category = rate.SelectToken("category").Value<string>(),
-            };
+            var parsedRate = rate.ToObject<TinkoffExchangeRate>();
+            parsedRate.From = rate.SelectToken("fromCurrency.name").Value<string>();
+            parsedRate.Updated = DateTime.UnixEpoch.AddMilliseconds(obj.SelectToken("$.payload.lastUpdate.milliseconds").Value<double>());
 
-            if (LastRate == null)
+            var diff = Math.Abs(parsedRate.Sell - (LastRate?.Sell ?? parsedRate.Sell));
+            if (diff == 0)
             {
-                var repository = _serviceProvider.GetRequiredService<IRepository>();
-                LastRate = await repository.GetLastRateAsync();
+                _logger.LogInformation($"Difference between parsed and last rate is 0.");
+                return;
             }
-            var diff = Math.Abs(parsedRate.Sell - (LastRate?.Sell ?? 0));
+
+            await _serviceProvider.GetRequiredService<IRepository>().SaveEntityAsync(parsedRate);
+            _logger.LogInformation($"Rate added to DB: {parsedRate.GetDiffMessage(LastRate)}");
             var sender = _serviceProvider.GetRequiredService<TelegramMessageSender>();
-            if (LastRate == null || diff >= _configuration.Threshold)
-            {
-                await _serviceProvider.GetRequiredService<IRepository>().AddAsync(parsedRate);
-                _logger.LogInformation($"Rate added to DB: {parsedRate.GetDiffMessage(LastRate)}");
-                await sender.SendRateAsync(parsedRate, LastRate);
-                LastRate = parsedRate;
-            }
-            else
-            {
-                await sender.SendDetailedRate(parsedRate, LastRate);
-                _logger.LogInformation($"Rate is skipped: {parsedRate.GetDiffMessage(LastRate)}");
-            }
+            await sender.SendDetailedRate(parsedRate, LastRate);
+            LastRate = parsedRate;
         }
     }
 }

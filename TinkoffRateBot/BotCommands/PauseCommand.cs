@@ -10,12 +10,21 @@ using TinkoffRateBot.Services;
 
 namespace TinkoffRateBot.BotCommands
 {
+    /// <summary>
+    /// Command to pause notifications.
+    /// </summary>
     public class PauseCommand : TextCommand
     {
         private readonly ILogger<StartCommand> _logger;
         private readonly IRepository _repository;
         private readonly TelegramMessageSender _messageSender;
 
+        /// <summary>
+        /// Create an instance of <see cref="PauseCommand"/>.
+        /// </summary>
+        /// <param name="logger"></param>
+        /// <param name="repository"></param>
+        /// <param name="messageSender"></param>
         public PauseCommand(ILogger<StartCommand> logger, IRepository repository, TelegramMessageSender messageSender)
         {
             _logger = logger;
@@ -23,14 +32,13 @@ namespace TinkoffRateBot.BotCommands
             _messageSender = messageSender;
         }
 
-        protected override string CommandName => "pause";
-
-        public async override Task HandleAsync(Message message, ITelegramBotClient client)
+        /// <inheritdoc/>
+        public async override Task HandleAsync(Message message)
         {
-            _logger.LogInformation($"Start handle PAUSE command for chat {message.Chat.Id}");
+            _logger.LogTrace($"Start handle PAUSE command for chat {message.Chat.Id}");
             await _repository.UpdateChatInfo(message.Chat.Id, false);
-            _logger.LogInformation("Sending message from PAUSE command");
-            await _messageSender.SendMessageAsync(message.Chat.Id, "Send /start to resume notifications.");
+            _logger.LogTrace("Sending message from PAUSE command");
+            await _messageSender.SendMessageAsync(message.Chat.Id, "Notifications was paused. Send /start to resume notifications.");
         }
     }
 }

@@ -3,43 +3,44 @@ using Amazon.DynamoDBv2.DataModel;
 using Amazon.DynamoDBv2.DocumentModel;
 using Amazon.DynamoDBv2.Model;
 using Amazon.Runtime;
+using Amazon.Runtime.Internal.Util;
+using Microsoft.AspNetCore.Mvc.Formatters;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using TinkoffRateBot.DataAccess.Converters;
+using TinkoffRateBot.DataAccess.Interfaces;
 using TinkoffRateBot.DataAccess.Models;
 
 namespace TinkoffRateBot.DataAccess
 {
-    public class DynamoDBRepository : Interfaces.IRepository
+    /// <summary>
+    /// DynamoDB database actions provider.
+    /// </summary>
+    public class DynamoDBRepository : IRepository
     {
         private readonly IDynamoDBContext _dynamoDBContext;
-
-        public DynamoDBRepository(IDynamoDBContext dynamoDBContext)
+        private readonly ILogger<DynamoDBRepository> _logger;
+        /// <summary>
+        /// Create an instance of <see cref="DynamoDBRepository"/>.
+        /// </summary>
+        /// <param name="dynamoDBContext"></param>
+        /// <param name="logger"></param>
+        public DynamoDBRepository(IDynamoDBContext dynamoDBContext, ILogger<DynamoDBRepository> logger)
         {
             _dynamoDBContext = dynamoDBContext;
+            _logger = logger;
         }
-
-        public async Task<bool> AddAsync(TelegramChatInfo telegramChat)
-        {
-            await _dynamoDBContext.SaveAsync(telegramChat);
-            return true;
-        }
-
-        public async Task<bool> AddAsync(TinkoffExchangeRate exchangeRate)
-        {
-            await _dynamoDBContext.SaveAsync(exchangeRate);
-            return true;
-        }
-
+        /// <inheritdoc/>
         public void Dispose()
         {
             _dynamoDBContext?.Dispose();
         }
-
+        /// <inheritdoc/>
         public async Task<IEnumerable<TelegramChatInfo>> GetActiveChatsAsync()
         {
             var condition = new[] 
@@ -56,7 +57,7 @@ namespace TinkoffRateBot.DataAccess
             
             return chats;
         }
-
+        /// <inheritdoc/>
         public async Task<TinkoffExchangeRate> GetLastRateAsync()
         {
             var asyncQuery = _dynamoDBContext.FromQueryAsync<TinkoffExchangeRate>(new QueryOperationConfig
@@ -68,51 +69,54 @@ namespace TinkoffRateBot.DataAccess
             var items = await asyncQuery.GetNextSetAsync();
             return items.FirstOrDefault();
         }
-
-        public async Task<TelegramChatInfo> GetLastUpdate()
-        {
-            var asyncQuery = _dynamoDBContext.FromQueryAsync<TelegramChatInfo>(new QueryOperationConfig
-            {
-                Limit = 1,
-                Filter = new QueryFilter(nameof(TelegramChatInfo.Type), QueryOperator.Equal, ChatInfoType.Update.ToString()),
-                BackwardSearch = true,
-            });
-            var items = await asyncQuery.GetNextSetAsync();
-            return items.FirstOrDefault();
-        }
-
-        public Task<TelegramChatInfo> UpdateChatInfo(long id)
-        {
-            return _dynamoDBContext.LoadAsync<TelegramChatInfo>(ChatInfoType.Chat.ToString(), id);
-        }
-
+        /// <inheritdoc/>
         public async Task UpdateChatInfo(long id, bool isEnabled)
         {
             var chatInfo = await _dynamoDBContext.LoadAsync<TelegramChatInfo>(ChatInfoType.Chat.ToString(), id);
-            chatInfo.IsEnabled = isEnabled;
-            chatInfo.Updated = DateTime.UtcNow;
-            await _dynamoDBContext.SaveAsync(chatInfo);
-        }
 
-        public Task UpdateChatInfo(long id, double threshold)
-        {
-            return _dynamoDBContext.SaveAsync(new TelegramChatInfo
+            if (chatInfo == null)
             {
-                Type = ChatInfoType.Chat,
-                Updated = DateTime.UtcNow,
-                Id = id,
-                DetailedThreshold = threshold,
-                IsEnabled = true
-            });
-        }
+                if (!isEnabled)
+                {
+                    _logger.LogWarning($"Trying to pause unknown chat ({id})");
+                    return;
+                }
+                chatInfo = new TelegramChatInfo { Id = id };
+            }
 
+            chatInfo.IsEnabled = isEnabled;
+            await SaveEntityAsync(chatInfo);
+        }
+        /// <inheritdoc/>
+        public async Task UpdateChatInfo(long id, double threshold, double? actualRate = null)
+        {
+            var chatInfo = await _dynamoDBContext.LoadAsync<TelegramChatInfo>(ChatInfoType.Chat.ToString(), id);
+
+            if (chatInfo == null)
+            {
+                _logger.LogWarning("Trying to update threshold of unknown chat.");
+                return;
+            }
+
+            chatInfo.DetailedThreshold = threshold;
+
+            actualRate ??= (await GetLastRateAsync())?.Sell;
+            if (actualRate.HasValue)
+            {
+                chatInfo.UpdateThresholdRates(actualRate.Value);
+            }
+
+            await SaveEntityAsync(chatInfo);
+        }
+        /// <inheritdoc/>
         public async Task InitializeDBAsync(IServiceProvider serviceProvider)
         {
             var client = serviceProvider.GetRequiredService<IAmazonDynamoDB>();
             var tables = await client.ListTablesAsync();
 
             // TODO: use prefix in repository
-            var postfix = serviceProvider.GetService<IHostEnvironment>().IsDevelopment() 
+            var env = serviceProvider.GetService<IHostEnvironment>();
+            var postfix = env.IsDevelopment() 
                 ? string.Empty
                 : string.Empty;
 
@@ -133,18 +137,21 @@ namespace TinkoffRateBot.DataAccess
                     tableStatus = descriveResponse.Table.TableStatus;
                 }
             }
-
             await CreateIfNotExist<TelegramChatInfo>();
             await CreateIfNotExist<TinkoffExchangeRate>();
         }
-
-        public async Task<IEnumerable<TelegramChatInfo>> GetDetailedChatsAsync(double diff)
+        /// <inheritdoc/>
+        public async Task<IEnumerable<TelegramChatInfo>> GetDetailedChatsAsync(TinkoffExchangeRate actual, TinkoffExchangeRate previous)
         {
+            var condition = actual.Sell - previous.Sell > 0
+                ? new ScanCondition(nameof(TelegramChatInfo.MaxThresholdRate), ScanOperator.LessThanOrEqual, actual.Sell)
+                : new ScanCondition(nameof(TelegramChatInfo.MinThresholdRate), ScanOperator.GreaterThanOrEqual, actual.Sell);
+
             var conditions = new[]
             {
                 new ScanCondition(nameof(TelegramChatInfo.IsEnabled), ScanOperator.Equal, true),
                 new ScanCondition(nameof(TelegramChatInfo.Type), ScanOperator.Equal, ChatInfoType.Chat.ToString()),
-                new ScanCondition(nameof(TelegramChatInfo.DetailedThreshold), ScanOperator.LessThanOrEqual, diff)
+                condition
             };
             var scan = _dynamoDBContext.ScanAsync<TelegramChatInfo>(conditions);
             var result = new List<TelegramChatInfo>();
@@ -153,6 +160,23 @@ namespace TinkoffRateBot.DataAccess
                 result.AddRange(await scan.GetNextSetAsync());
             }
             return result;
+        }
+        /// <inheritdoc/>
+        public async Task SaveEntityAsync(IEntity entity)
+        {
+            if (entity is TelegramChatInfo telegramChat)
+            {
+                if (telegramChat.MinThresholdRate <= 0 || telegramChat.MaxThresholdRate <= 0)
+                {
+                    var lastRate = await GetLastRateAsync();
+                    if (lastRate != null)
+                    {
+                        telegramChat.UpdateThresholdRates(lastRate.Sell);
+                    }
+                }
+            }
+            entity.Updated = DateTime.UtcNow;
+            await _dynamoDBContext.SaveAsync(entity);
         }
 
         private static IEnumerable<KeySchemaElement> GetKeys<T>()

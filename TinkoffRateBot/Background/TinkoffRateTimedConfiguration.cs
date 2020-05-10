@@ -7,9 +7,17 @@ namespace TinkoffRateBot.Background
 {
     public class TinkoffRateTimedConfiguration
     {
+        /// <summary>
+        /// Address of API.
+        /// </summary>
         public Uri BaseUrl { get; set; }
+        /// <summary>
+        /// Currency scan period.
+        /// </summary>
         public int Period { get; set; }
-        public double Threshold { get; set; }
+        /// <summary>
+        /// Category to watch.
+        /// </summary>
         public string CategoryName { get; set; }
     }
 }
