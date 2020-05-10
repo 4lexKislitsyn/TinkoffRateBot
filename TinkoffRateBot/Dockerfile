@@ -9,7 +9,7 @@ FROM mcr.microsoft.com/dotnet/core/sdk:3.1-buster AS build
 WORKDIR /src
 COPY ["TinkoffRateBot.csproj", "TinkoffRateBot/"]
 COPY *.cs *.json TinkoffRateBot/
-COPY Background/* Controllers/* DataAccess/* Services/* BotCommands/* TinkoffRateBot/
+COPY Background/* Controllers/* DataAccess/* Services/* BotCommands/* Models/* TinkoffRateBot/
 RUN dotnet restore "TinkoffRateBot/TinkoffRateBot.csproj"
 COPY . .
 WORKDIR "/src/TinkoffRateBot"

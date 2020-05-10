@@ -17,16 +17,18 @@ namespace TinkoffRateBot.Services
     {
         private readonly ILogger<TelegramUpdateHandler> _logger;
         private readonly IEnumerable<IBotCommand> _botCommands;
+        private readonly TelegramMessageSender _telegramMessageSender;
 
         /// <summary>
         /// Create an instance of <see cref="TelegramUpdateHandler"/>.
         /// </summary>
         /// <param name="logger"></param>
         /// <param name="botCommands"></param>
-        public TelegramUpdateHandler(ILogger<TelegramUpdateHandler> logger, IEnumerable<IBotCommand> botCommands)
+        public TelegramUpdateHandler(ILogger<TelegramUpdateHandler> logger, IEnumerable<IBotCommand> botCommands, TelegramMessageSender telegramMessageSender)
         {
             _logger = logger;
             _botCommands = botCommands;
+            _telegramMessageSender = telegramMessageSender;
         }
         /// <summary>
         /// Handle Telegram update message.
@@ -37,11 +39,12 @@ namespace TinkoffRateBot.Services
         {
             try
             {
-                _logger.LogInformation($"Try to handle message {update?.Message?.Text}");
+                _logger.LogInformation($"Try to handle message {update?.Message?.Text} ({update.Message.Chat?.Id})");
                 var command = _botCommands.FirstOrDefault(x => x.CanHandle(update.Message));
                 if (command == null)
                 {
                     _logger.LogWarning($"Command wasn't found. Type = {update.Message.Type}.");
+                    await _telegramMessageSender.SendMessageAsync(update.Message.Chat.Id, "Unknown command. Sorry. Send /start to enable notifications.");
                     return false;
                 }
                 await command.HandleAsync(update.Message);
