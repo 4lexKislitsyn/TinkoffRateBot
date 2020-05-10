@@ -164,19 +164,24 @@ namespace TinkoffRateBot.DataAccess
         /// <inheritdoc/>
         public async Task SaveEntityAsync(IEntity entity)
         {
-            if (entity is TelegramChatInfo telegramChat)
-            {
-                if (telegramChat.MinThresholdRate <= 0 || telegramChat.MaxThresholdRate <= 0)
-                {
-                    var lastRate = await GetLastRateAsync();
-                    if (lastRate != null)
-                    {
-                        telegramChat.UpdateThresholdRates(lastRate.Sell);
-                    }
-                }
-            }
             entity.Updated = DateTime.UtcNow;
-            await _dynamoDBContext.SaveAsync(entity);
+            switch (entity)
+            {
+                case TelegramChatInfo telegramChat:
+                    if (telegramChat.MinThresholdRate <= 0 || telegramChat.MaxThresholdRate <= 0)
+                    {
+                        var lastRate = await GetLastRateAsync();
+                        if (lastRate != null)
+                        {
+                            telegramChat.UpdateThresholdRates(lastRate.Sell);
+                        }
+                    }
+                    await _dynamoDBContext.SaveAsync(telegramChat);
+                    break;
+                case TinkoffExchangeRate rate:
+                    await _dynamoDBContext.SaveAsync(rate);
+                    break;
+            }
         }
 
         private static IEnumerable<KeySchemaElement> GetKeys<T>()
