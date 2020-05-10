@@ -22,6 +22,17 @@ namespace TinkoffRateBot.DataAccess.Models
         [DynamoDBRangeKey(Converter = typeof(DateTimePropertyConverter))]
         public DateTime Updated { get; set; }
 
-        public string GetDiffMessage(TinkoffExchangeRate compareRate) => $"{Sell} ({Sell - (compareRate?.Sell ?? 0):+0.##;-0.##;0})";
+        /// <summary>
+        /// Get formated message with info about current <see cref="Sell"/> value and difference between <paramref name="compareRate"/>.
+        /// </summary>
+        /// <param name="compareRate"></param>
+        /// <returns></returns>
+        public string GetDiffMessage(TinkoffExchangeRate compareRate) => GetDiffMessage(compareRate?.Sell ?? 0);
+        /// <summary>
+        /// Get formated message with info about current <see cref="Sell"/> value and difference between <paramref name="compareRateSellValue"/>.
+        /// </summary>
+        /// <param name="compareRateSellValue"></param>
+        /// <returns></returns>
+        public string GetDiffMessage(double compareRateSellValue) => $"{Sell} ({Sell - compareRateSellValue:+0.##;-0.##;0})";
     }
 }

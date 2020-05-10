@@ -24,19 +24,9 @@ namespace TinkoffRateBot.Services
             _logger = logger;
         }
 
-        public async Task SendRateAsync(TinkoffExchangeRate currentRate, TinkoffExchangeRate previousRate = null, ITelegramBotClient client = null)
+        public async Task SendRateAsync(long chatId, TinkoffExchangeRate currentRate, ITelegramBotClient client = null)
         {
-            var chats = await _repository.GetActiveChatsAsync();
-            foreach (var chat in chats)
-            {
-                await SendRateAsync(chat.Id, currentRate, previousRate, client);
-            }
-        }
-
-        public async Task SendRateAsync(long chatId, TinkoffExchangeRate currentRate, TinkoffExchangeRate prevRate = null, ITelegramBotClient client = null)
-        {
-            var message = prevRate != null ? $"**UPDATE**\n{currentRate.From}:  {currentRate.GetDiffMessage(prevRate)}"
-                : $"{currentRate.From}: {currentRate.Sell}";
+            var message = $"{currentRate.From}: {currentRate.Sell}";
             try
             {
                 await SendMessageAsync(chatId, message, client);
@@ -60,13 +50,13 @@ namespace TinkoffRateBot.Services
             }
         }
 
-        public async Task SendDetailedRate(TinkoffExchangeRate parsedRate, TinkoffExchangeRate lastRate)
+        public async Task SendRateUpdate(TinkoffExchangeRate parsedRate, TinkoffExchangeRate lastRate)
         {
             var chats = await _repository.GetDetailedChatsAsync(parsedRate, lastRate);
             foreach (var chat in chats)
             {
+                await SendMessageAsync(chat.Id, $"**UPDATE**\n{parsedRate.From}:  {parsedRate.GetDiffMessage(chat.MinThresholdRate + chat.DetailedThreshold)}");
                 await _repository.UpdateChatInfo(chat.Id, chat.DetailedThreshold, parsedRate.Sell);
-                await SendMessageAsync(chat.Id, $"Difference from active rate: {parsedRate.GetDiffMessage(lastRate)}");
             }
         }
     }

@@ -82,7 +82,7 @@ namespace TinkoffRateBot.Background
             await _serviceProvider.GetRequiredService<IRepository>().SaveEntityAsync(parsedRate);
             _logger.LogInformation($"Rate added to DB: {parsedRate.GetDiffMessage(LastRate)}");
             var sender = _serviceProvider.GetRequiredService<TelegramMessageSender>();
-            await sender.SendDetailedRate(parsedRate, LastRate);
+            await sender.SendRateUpdate(parsedRate, LastRate);
             LastRate = parsedRate;
         }
     }
